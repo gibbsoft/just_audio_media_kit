@@ -63,6 +63,9 @@ class MediaKitPlayer extends AudioPlayerPlatform {
       setProperty(_player, 'prefetch-playlist', 'yes');
     }
 
+    // Apply cache/buffer configuration.
+    _configureCacheProperties();
+
     _streamSubscriptions = [
       _player.stream.duration.listen((duration) {
         if (_currentMedia?.extras?['overrideDuration'] != null) return;
@@ -172,6 +175,50 @@ class MediaKitPlayer extends AudioPlayerPlatform {
         print("MPV: [${event.level}] ${event.prefix}: ${event.text}");
       }),
     ];
+  }
+
+  /// Configures libmpv cache and buffer properties from [JustAudioMediaKit]
+  /// static settings.
+  void _configureCacheProperties() {
+    final props = <String, String>{};
+
+    if (JustAudioMediaKit.demuxerReadaheadSecs != null) {
+      props['demuxer-readahead-secs'] =
+          '${JustAudioMediaKit.demuxerReadaheadSecs}';
+    }
+    if (JustAudioMediaKit.cacheSecs != null) {
+      props['cache-secs'] = '${JustAudioMediaKit.cacheSecs}';
+    }
+    props['cache-pause'] = JustAudioMediaKit.cachePause ? 'yes' : 'no';
+    if (JustAudioMediaKit.cachePauseWait != null) {
+      props['cache-pause-wait'] = '${JustAudioMediaKit.cachePauseWait}';
+    }
+
+    for (final entry in props.entries) {
+      setProperty(_player, entry.key, entry.value);
+      _logger.fine('mpv: ${entry.key}=${entry.value}');
+    }
+
+    // Observe demuxer-cache-duration to feed back accurate buffer position.
+    _setupCacheObserver();
+  }
+
+  /// Observes `demuxer-cache-duration` from libmpv and uses it to compute
+  /// a more accurate [_bufferedPosition] (current position + cache ahead).
+  void _setupCacheObserver() {
+    observeProperty(_player, 'demuxer-cache-duration', (value) async {
+      final cacheDuration = double.tryParse(value);
+      if (cacheDuration == null || cacheDuration < 0) return;
+
+      // bufferedPosition = current position + seconds of cache ahead
+      final cacheAhead = Duration(
+        milliseconds: (cacheDuration * 1000).round(),
+      );
+      _bufferedPosition = _position + cacheAhead;
+      _updatePlaybackEvent();
+    }).catchError((e) {
+      _logger.fine('Could not observe demuxer-cache-duration: $e');
+    });
   }
 
   void _updateDuration(Duration duration) {
@@ -389,6 +436,11 @@ class MediaKitPlayer extends AudioPlayerPlatform {
   Future<void> release() async {
     _logger.info('releasing player resources');
     _mediaOpened = false;
+    try {
+      await unobserveProperty(_player, 'demuxer-cache-duration');
+    } catch (_) {
+      // Player may already be disposed or property not observed.
+    }
     await _player.dispose();
     // cancel all stream subscriptions
     for (final StreamSubscription subscription in _streamSubscriptions) {

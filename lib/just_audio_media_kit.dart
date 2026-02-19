@@ -16,8 +16,38 @@ class JustAudioMediaKit extends JustAudioPlatform {
   /// The internal MPV player's logLevel
   static MPVLogLevel mpvLogLevel = MPVLogLevel.error;
 
-  /// Sets the demuxer's cache size (in bytes)
+  /// Sets the demuxer's cache size (in bytes).
   static int bufferSize = 32 * 1024 * 1024;
+
+  /// Sets the demuxer readahead duration (in seconds).
+  ///
+  /// Controls how many seconds of audio the demuxer will try to read ahead.
+  /// Higher values improve resilience to network hiccups at the cost of memory.
+  /// Set to `null` to use libmpv's default.
+  ///
+  /// See: https://mpv.io/manual/stable/#options-demuxer-readahead-secs
+  static double? demuxerReadaheadSecs;
+
+  /// Sets the network cache duration (in seconds).
+  ///
+  /// Controls how many seconds of audio to buffer from the network before
+  /// playback starts (and the minimum buffer to maintain during playback).
+  /// Set to `null` to use libmpv's default.
+  ///
+  /// See: https://mpv.io/manual/stable/#options-cache-secs
+  static double? cacheSecs;
+
+  /// Whether to pause playback when the cache runs empty and resume when
+  /// enough data is buffered again. Defaults to `true` (libmpv default: yes).
+  ///
+  /// See: https://mpv.io/manual/stable/#options-cache-pause
+  static bool cachePause = true;
+
+  /// Minimum seconds of cache required to unpause after a cache-pause.
+  /// Only relevant when [cachePause] is `true`. Set to `null` for libmpv default (1).
+  ///
+  /// See: https://mpv.io/manual/stable/#options-cache-pause-wait
+  static double? cachePauseWait;
 
   /// Sets the name of the underlying window & process for native backend. This is visible inside the Windows' volume mixer.
   static String title = 'JustAudioMediaKit';
