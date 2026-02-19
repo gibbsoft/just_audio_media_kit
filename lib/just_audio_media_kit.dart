@@ -8,6 +8,7 @@ import 'package:just_audio_media_kit/src/mediakit_player.dart';
 import 'package:just_audio_platform_interface/just_audio_platform_interface.dart';
 import 'package:logging/logging.dart';
 import 'package:media_kit/media_kit.dart';
+export 'package:media_kit/media_kit.dart' show MPVLogLevel;
 import 'package:universal_platform/universal_platform.dart';
 
 class JustAudioMediaKit extends JustAudioPlatform {
