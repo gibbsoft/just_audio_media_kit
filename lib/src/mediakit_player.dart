@@ -194,6 +194,24 @@ class MediaKitPlayer extends AudioPlayerPlatform {
       props['cache-pause-wait'] = '${JustAudioMediaKit.cachePauseWait}';
     }
 
+    // Apply lavf demuxer options (e.g. HLS reconnect settings).
+    if (JustAudioMediaKit.demuxerLavfOptions != null &&
+        JustAudioMediaKit.demuxerLavfOptions!.isNotEmpty) {
+      final lavfStr = JustAudioMediaKit.demuxerLavfOptions!.entries
+          .map((e) => '${e.key}=${e.value}')
+          .join(',');
+      props['demuxer-lavf-o'] = lavfStr;
+    }
+
+    // Apply stream-layer lavf options (e.g. HTTP/HLS reconnect settings).
+    if (JustAudioMediaKit.streamLavfOptions != null &&
+        JustAudioMediaKit.streamLavfOptions!.isNotEmpty) {
+      final streamStr = JustAudioMediaKit.streamLavfOptions!.entries
+          .map((e) => '${e.key}=${e.value}')
+          .join(',');
+      props['stream-lavf-o'] = streamStr;
+    }
+
     for (final entry in props.entries) {
       setProperty(_player, entry.key, entry.value);
       _logger.fine('mpv: ${entry.key}=${entry.value}');

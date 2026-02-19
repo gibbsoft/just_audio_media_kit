@@ -49,6 +49,33 @@ class JustAudioMediaKit extends JustAudioPlatform {
   /// See: https://mpv.io/manual/stable/#options-cache-pause-wait
   static double? cachePauseWait;
 
+  /// Extra key=value options passed to the lavf demuxer via
+  /// `demuxer-lavf-o`. Useful for HLS reconnection, e.g.:
+  /// ```dart
+  /// JustAudioMediaKit.demuxerLavfOptions = {
+  ///   'reconnect': '1',
+  ///   'reconnect_streamed': '1',
+  ///   'reconnect_delay_max': '5',
+  /// };
+  /// ```
+  ///
+  /// See: https://mpv.io/manual/stable/#options-demuxer-lavf-o
+  static Map<String, String>? demuxerLavfOptions;
+
+  /// Extra key=value options passed to the stream layer via
+  /// `stream-lavf-o`. Useful for HLS/HTTP stream reconnection, e.g.:
+  /// ```dart
+  /// JustAudioMediaKit.streamLavfOptions = {
+  ///   'reconnect': '1',
+  ///   'reconnect_streamed': '1',
+  ///   'reconnect_on_network_error': '1',
+  ///   'reconnect_delay_max': '5',
+  /// };
+  /// ```
+  ///
+  /// See: https://mpv.io/manual/stable/#options-stream-lavf-o
+  static Map<String, String>? streamLavfOptions;
+
   /// Sets the name of the underlying window & process for native backend. This is visible inside the Windows' volume mixer.
   static String title = 'JustAudioMediaKit';
 
