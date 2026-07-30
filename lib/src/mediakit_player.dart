@@ -12,6 +12,36 @@ class MediaKitPlayer extends AudioPlayerPlatform {
 
   /// `package:media_kit`'s [Player]
   late final Player _player;
+  // ---- Equaliser (libmpv `af equalizer` audio filter) --------------------
+  /// Current 10-band gain vector (dB), or null = filter removed. Set via
+  /// [applyEqualizer] and applied to every live player; also re-applied to
+  /// players created afterwards so EQ survives player recreation.
+  static List<double>? equalizerGains;
+  static final Set<Player> _livePlayers = {};
+
+  /// Set the equaliser for every live media_kit player (and remember it for
+  /// future ones). `null` / empty removes the filter.
+  static Future<void> applyEqualizer(List<double>? gains) async {
+    equalizerGains =
+        (gains == null || gains.isEmpty) ? null : List<double>.of(gains);
+    for (final p in Set<Player>.of(_livePlayers)) {
+      await _applyEqTo(p);
+    }
+  }
+
+  static Future<void> _applyEqTo(Player p) async {
+    final g = equalizerGains;
+    if (g == null) {
+      await setProperty(p, 'af', '');
+    } else {
+      await setProperty(
+        p,
+        'af',
+        'equalizer=${g.map((v) => v.toStringAsFixed(2)).join(':')}',
+      );
+    }
+  }
+
 
   /// The subscriptions that have to be disposed
   late final List<StreamSubscription> _streamSubscriptions;
@@ -65,6 +95,10 @@ class MediaKitPlayer extends AudioPlayerPlatform {
 
     // Apply cache/buffer configuration.
     _configureCacheProperties();
+    _livePlayers.add(_player);
+    if (equalizerGains != null) {
+      unawaited(_applyEqTo(_player));
+    }
 
     _streamSubscriptions = [
       _player.stream.duration.listen((duration) {
@@ -459,6 +493,7 @@ class MediaKitPlayer extends AudioPlayerPlatform {
     } catch (_) {
       // Player may already be disposed or property not observed.
     }
+    _livePlayers.remove(_player);
     await _player.dispose();
     // cancel all stream subscriptions
     for (final StreamSubscription subscription in _streamSubscriptions) {

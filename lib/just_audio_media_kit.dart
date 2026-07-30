@@ -195,3 +195,10 @@ class JustAudioMediaKit extends JustAudioPlatform {
     return DisposeAllPlayersResponse();
   }
 }
+
+/// Sets a 10-band equaliser (gains in dB) on every live media_kit player and
+/// re-applies it to players created afterwards. Pass `null` to remove the
+/// filter. Uses libmpv's `equalizer` audio filter (fixed 31.25 Hz … 16 kHz
+/// bands, matching the app's canonical layout).
+Future<void> setMediaKitEqualizer(List<double>? gains) =>
+    MediaKitPlayer.applyEqualizer(gains);
