@@ -30,6 +30,7 @@ class MediaKitPlayer extends AudioPlayerPlatform {
   }
 
   static Future<void> _applyEqTo(Player p) async {
+    final wasPlaying = p.state.playing;
     final g = equalizerGains;
     if (g == null) {
       await setProperty(p, 'af', '');
@@ -40,8 +41,14 @@ class MediaKitPlayer extends AudioPlayerPlatform {
         'equalizer=${g.map((v) => v.toStringAsFixed(2)).join(':')}',
       );
     }
+    // Reloading libmpv's `af` audio-filter chain can stall a live stream —
+    // media_kit ends up reporting playing=true, processingState=idle and never
+    // resumes on its own. Explicitly resume so playback continues through the
+    // freshly-built filter chain instead of waiting for a reconnect.
+    if (wasPlaying) {
+      await p.play();
+    }
   }
-
 
   /// The subscriptions that have to be disposed
   late final List<StreamSubscription> _streamSubscriptions;
