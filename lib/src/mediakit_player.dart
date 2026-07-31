@@ -21,12 +21,17 @@ class MediaKitPlayer extends AudioPlayerPlatform {
 
   /// Set the equaliser for every live media_kit player (and remember it for
   /// future ones). `null` / empty removes the filter.
+  ///
+  /// NOTE: this only *stores* the gains — it deliberately does NOT apply `af`
+  /// to already-playing players. Changing `af` mid-stream on a live source
+  /// stalls media_kit (playing=true, processingState=idle; never recovers).
+  /// New players pick up [equalizerGains] at construction (see the
+  /// `MediaKitPlayer` constructor), i.e. before the stream loads, where
+  /// applying it is safe and audible. The host recreates the player when the
+  /// user changes the EQ so the new gains take effect.
   static Future<void> applyEqualizer(List<double>? gains) async {
     equalizerGains =
         (gains == null || gains.isEmpty) ? null : List<double>.of(gains);
-    for (final p in Set<Player>.of(_livePlayers)) {
-      await _applyEqTo(p);
-    }
   }
 
   /// Standard ISO centres for the 10-band graphic EQ, aligned with the app's
