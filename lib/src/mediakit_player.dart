@@ -12,7 +12,7 @@ class MediaKitPlayer extends AudioPlayerPlatform {
 
   /// `package:media_kit`'s [Player]
   late final Player _player;
-  // ---- Equaliser (libmpv `af equalizer` audio filter) --------------------
+  // ---- Equaliser (libmpv `af lavfi=[anequalizer…]` audio filter) ---------
   /// Current 10-band gain vector (dB), or null = filter removed. Set via
   /// [applyEqualizer] and applied to every live player; also re-applied to
   /// players created afterwards so EQ survives player recreation.
@@ -29,16 +29,47 @@ class MediaKitPlayer extends AudioPlayerPlatform {
     }
   }
 
+  /// Standard ISO centres for the 10-band graphic EQ, aligned with the app's
+  /// `canonicalCentresHz`. Used to emit an FFmpeg `anequalizer` filter graph.
+  static const _eqCentres = <double>[
+    31.25,
+    62.5,
+    125,
+    250,
+    500,
+    1000,
+    2000,
+    4000,
+    8000,
+    16000,
+  ];
+
+  /// Build an FFmpeg `anequalizer` (multi-band graphic EQ) graph from a gain
+  /// vector aligned to [_eqCentres]. Each band covers ~1 octave.
+  static String _buildAnequalizer(List<double> gains) {
+    final n =
+        gains.length < _eqCentres.length ? gains.length : _eqCentres.length;
+    final bands = <String>[];
+    for (var i = 0; i < n; i++) {
+      final f = _eqCentres[i];
+      bands.add(
+        'c0 f=$f w=${(f * 0.8).round()} g=${gains[i].toStringAsFixed(2)}',
+      );
+    }
+    return 'anequalizer=${bands.join('|')}';
+  }
+
   static Future<void> _applyEqTo(Player p) async {
     final g = equalizerGains;
-    if (g == null) {
+    // mpv has no native multi-band EQ. The legacy `equalizer=g:g:…` form is
+    // FFmpeg's *single-band* filter (params frequency/gain/width) and mpv
+    // silently rejected it — applying nothing. Route FFmpeg's real graphic EQ
+    // (`anequalizer`) through libmpv's `lavfi` audio filter instead. Flat gains
+    // remove the filter entirely.
+    if (g == null || g.every((v) => v.abs() < 0.001)) {
       await setProperty(p, 'af', '');
     } else {
-      await setProperty(
-        p,
-        'af',
-        'equalizer=${g.map((v) => v.toStringAsFixed(2)).join(':')}',
-      );
+      await setProperty(p, 'af', 'lavfi=[${_buildAnequalizer(g)}]');
     }
     // Reloading `af` on a live stream stalls media_kit (playing=true,
     // processingState=idle; it never recovers, and play() can't kick it free).
